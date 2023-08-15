@@ -1,0 +1,9 @@
+pandas
+numpy
+matplotlib
+scipy
+pyarrow
+sentence-transformers
+streamlit
+streamlit-authenticator
+streamlit-aggrid
