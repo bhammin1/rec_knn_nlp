@@ -202,7 +202,10 @@ def start_app():
 
     if choice == "About":
         st.subheader("About")
-        #TODO more descriptive text
+        st.write(f'Welcome To the Cyber News Cafe')
+        st.write(f'Please log in or create an account to access the news stand')
+        st.write(f'Once logged in, you will receive personal recommendations after viewing one article')
+        
     elif choice == "Login":
         login(authenticator)
     elif choice == "SignUp":
