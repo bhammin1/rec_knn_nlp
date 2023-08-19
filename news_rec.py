@@ -10,12 +10,22 @@ from sentence_transformers import CrossEncoder
 
 def load_tsv(file, cols):
     '''
+    Given a path and list of columns,
+    loads a tsv file into a pandas data frame
     '''
     df = pd.read_table(file,sep="\t", header=None, names=cols)
 
     return df
 
 def one_hot(df, col,vals):
+    '''
+    Performs one hot-encoding on a single column
+
+    Parameters:
+    df: pandas dataframe
+    col: string for column name to convert encoding
+    vals: list of values for a column
+    '''
     for i, rw in df.iterrows():
         encoding = []
         current_val = rw[col]
@@ -31,6 +41,12 @@ def one_hot(df, col,vals):
 
 def create_rows(df, col):
     '''
+    Converts a list field into multiple rows
+    Each row contains one value of the list
+
+    Parameters:
+    df: pandas df
+    col: string representing the string name
     '''
     # first convert string into a list/array
     df[col] = df[col].str.split()
@@ -45,6 +61,12 @@ def get_similarity(candidate, history,cols, distance):
     List of cols to take distance on
     Performs distance calc on each feature
     returns the sum of the distance
+
+    Parameters:
+    candidate: pd df for candidate articles (should be contain one row)
+    history: pd df for history articles (should be contain one row)
+    cols: list of cols to measure distance between
+    distance: type of distance measure cosine or pearson
     '''
     sim_score = 0
     for c in cols:
@@ -65,6 +87,14 @@ def get_similarity_semantic(candidate, history,cols, distance, model):
     List of cols to take distance on
     Performs distance calc on each feature
     returns the sum of the distance
+    Then adds sts score to the distance
+
+     Parameters:
+    candidate: pd df for candidate articles (should be contain one row)
+    history: pd df for history articles (should be contain one row)
+    cols: list of cols to measure distance between
+    distance: type of distance measure cosine or pearson
+    model: STS model 
     '''
     sim_score = get_similarity(candidate, history,cols, distance)
 
@@ -88,6 +118,15 @@ def get_similarity_entailement(candidate, history,cols, distance, model,directio
     List of cols to take distance on
     Performs distance calc on each feature
     returns the sum of the distance
+    Then adds the entailement score to the distance
+
+    Parameters:
+    candidate: pd df for candidate articles (should be contain one row)
+    history: pd df for history articles (should be contain one row)
+    cols: list of cols to measure distance between
+    distance: type of distance measure cosine or pearson
+    model: NLI model
+    direction: number of times to generate entailement score
     '''
     sim_score = get_similarity(candidate, history,cols, distance)
 
@@ -119,6 +158,9 @@ def knn_per_history(candidates, scores, k):
     return topK
 
 def recommend_one(topKs):
+    ''''
+    Recommends the top k (only highest)
+    '''
     recs = pd.concat(topKs)
 
     # Group by count
@@ -137,6 +179,9 @@ def recommend_one(topKs):
     return recs_max_list[0]
 
 def recommend_k(topKs,k=5):
+    '''
+    Recommends K articles
+    '''
     final_recs = []
     # combine list of dfs with historical top k
     recs = pd.concat(topKs)
@@ -171,6 +216,19 @@ def recommend_k(topKs,k=5):
     return final_recs
 
 def rec_any(candidate, history, k, distance,exp,model, directions=1,debug=False):
+    '''
+    Provides recommendations using NN only approach
+
+    Parameters:
+    candidate: candidate pd DF
+    history: history panda DF
+    k: number of articles to recommend per user
+    distance: distance measure to use: cosine or pearson
+    exp: experiment name
+    model: NLP model
+    direction: NLI experiment number of entailement score
+    debug: bool indicator to print status
+    '''
     users = history["user_id"].unique()
     user_pred = {}
     for user in users:
@@ -212,7 +270,7 @@ def rec_any(candidate, history, k, distance,exp,model, directions=1,debug=False)
         if debug:
             print("User Status",np.where(users == user), "/", users.shape)
     return user_pred
-
+'''
 def rec(candidate, history, k, distance):
     users = history["user_id"].unique()
     user_pred = {}
@@ -245,17 +303,23 @@ def rec(candidate, history, k, distance):
         user_pred[user] = recommend_one(user_topK)
     return user_pred
 
+
 def rec_sts(candidate, history, k, distance,model_sts, debug=False):
     users = history["user_id"].unique()
     user_pred = {}
     for user in users:
         user_can =  candidate.loc[candidate["user_id"] == user]
         user_hist =  history.loc[history["user_id"] == user]
+        print("User Can shape",user_can.shape)
+        print("User His shape",user_hist.shape)
 
         # get list of historical articles
         hist_recs = user_hist["news_id"].unique()
         candidate_recs = user_can["news_id"].unique()
         user_topK = []
+
+        print("Art Can shape",candidate_recs.shape)
+        print("art His shape",hist_recs.shape)
 
         #score each historical article to candidate article
         for hr in hist_recs:
@@ -314,8 +378,13 @@ def rec_entailement(candidate, history, k, distance,model_nli,debug=False, direc
         if debug:
             print("User Status",np.where(users == user), "/", users.shape)
     return 
-
+'''
 def get_metrics(candidate, preds:dict):
+    '''
+    Returns the accuracy of the model
+    candidate: pd dataframe with label of candidate articles
+    preds: dictionary of predicted user recommendations
+    '''
     preds_series = pd.Series(preds, name="prediction")
     pred_df = preds_series.to_frame()
     pred_df["user_id"] = pred_df.index
@@ -328,6 +397,9 @@ def get_metrics(candidate, preds:dict):
     return accuracy
 
 def dict_to_csv(result, file):
+    '''
+    Saves the prediction output to a csv
+    '''
     df_result = pd.DataFrame(data=result.items(), columns=["user_id","preds"])
     df_result[['pred_1','pred_2','pred_3','pred_4','pred_5']] = pd.DataFrame(df_result["preds"].tolist(), index= df_result.index)
     
@@ -336,6 +408,9 @@ def dict_to_csv(result, file):
     df_result.to_csv(file, index=False)
 
 def result_dict(file):
+    '''
+    Reads the result csv and returns a dictionary
+    '''
     with open(file, mode='r') as infile:
         reader = csv.reader(infile)
         mydict = {rows[0]:rows[1] for rows in reader}
@@ -344,6 +419,9 @@ def result_dict(file):
     return mydict
 
 def all_preprocessing():
+    '''
+    Preforms all pre-processing on the MIND data
+    '''
     # load data
     behav_cols = ["impression_id", "user_id","time","history","impressions"]
     news_cols = ["news_id","category","sub_category","title","abstract","url","title_entities","abstract_entitites"]
@@ -414,6 +492,12 @@ def all_preprocessing():
 
 
 def all_preprocessing_final():
+    '''
+    Preforms all pre-processing on the MIND data
+    This is for the final experiments only
+    Different than above function because this processing doesnt filter out by date
+
+    '''
     # load data
     behav_cols = ["impression_id", "user_id","time","history","impressions"]
     news_cols = ["news_id","category","sub_category","title","abstract","url","title_entities","abstract_entitites"]
@@ -488,12 +572,16 @@ def all_preprocessing_final():
 
 def load_csv(file):
     '''
+    Loads a csv to pd df
     '''
     df = pd.read_table(file,sep=",",index_col=0)
 
     return df
 
 def all_preprocessing_web_app():
+    '''
+    All the pre-processing needed for the web application
+    '''
     # load data
     b_df = load_csv("./data/web_app_users.csv")
     news_df = load_csv("./data/web_app_news.csv")
@@ -516,8 +604,7 @@ def all_preprocessing_web_app():
     one_hot(news_df, "sub_category",subcats)
 
     # filter out multiple impressions per day
-    b_df['RN'] = b_df.sort_values(['time'], ascending=[False]).groupby(['user_id',"date"]).cumcount() + 1
-    #b_df.loc[b_df["user_id"] == 'U79549'].sort_values(['time']) # check work
+    b_df['RN'] = b_df.sort_values(['time'], ascending=[False]).groupby(['user_id']).cumcount() + 1
     b_df= b_df.loc[b_df["RN"] == 1] 
 
 
@@ -546,11 +633,17 @@ def all_preprocessing_web_app():
     return history_df, candidate_df,news_df_original
 
 def get_models():
+    '''
+    Gets the models needed for the NLP experiments
+    '''
     model_sts = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
     nli_model = CrossEncoder('cross-encoder/nli-roberta-base')
     return model_sts, nli_model
 
 def get_sts():
+    '''
+    Returns only the STS model
+    '''
     return SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 

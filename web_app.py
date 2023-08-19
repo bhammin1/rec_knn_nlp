@@ -17,8 +17,10 @@ model_sts = nr.get_sts()
 
 
 def display_candidates(user, history, candidate,news):
+    '''
+    Displays the news articles for a user to browse once logged in
+    '''
     hist_news = history.loc[history["user_id"]== user]["news_id"].to_list()
-    print("Len of hist", len(hist_news))
     can_news = candidate.loc[candidate["user_id"]== user]["news_id"].to_list()
     exclude_news = hist_news + can_news
 
@@ -31,6 +33,9 @@ def display_candidates(user, history, candidate,news):
     return news_to_display
 
 def add_new_user(new_user, can,copy_user="U9318"):
+    '''
+    Adds a new user to the databse
+    '''
     global cand
     new_user_df = can.loc[can["user_id"]==copy_user].copy(deep=True)
     new_user_df["user_id"] = new_user
@@ -38,12 +43,14 @@ def add_new_user(new_user, can,copy_user="U9318"):
     cand = can.copy()
 
 def update_history(user, hist, cand, new_reading):
+    '''
+    Adds records to a users reading history.
+    '''
     global history
     fields = ["date", "news_id","category","sub_category","title"]
     
     for read in new_reading:
         # verify record is not already present
-        #print(history.loc[(history["news_id"]== read) & (history["user_id"]== user)])
         if history.loc[(history["news_id"]== read) & (history["user_id"]== user)].shape[0] == 0:
             new_history = cand.loc[cand["news_id"]==read][fields].head(1)
 
@@ -53,9 +60,11 @@ def update_history(user, hist, cand, new_reading):
             new_history["user_id"] = user
             hist = pd.concat([hist, new_history])
     history = hist.copy()
-    #print("New History",history.loc[(history["user_id"]==user)].shape)
 
 def recommend_sidebar(user, can, hist, news,sts):
+    '''
+    Produces recommendations on the side bar
+    '''
     # filter to only the user
     user_can = can.loc[can["user_id"]==user]
     user_hist = hist.loc[hist["user_id"]==user]
@@ -67,7 +76,6 @@ def recommend_sidebar(user, can, hist, news,sts):
 
         else:
             recs = nr.rec_any(user_can, user_hist , 3, "cosine","STS",sts, 1,True)
-            print(recs)
 
             if user in recs:
                 recs_df = news.loc[news["news_id"].isin(recs[user])][["news_id","title","abstract"]]
@@ -81,13 +89,14 @@ def recommend_sidebar(user, can, hist, news,sts):
 
 def recommender(name):
     '''
-    
+    Once loggin, the recommender system application launches
+    This allows for recommendations to be created while the user
+    browses the news stand
     '''
     # add user if no history exists
     if cand.loc[cand["user_id"] == name].shape[0] == 0:
-        #print("New User")
+
         add_new_user(name, cand)
-        #print(cand.loc[cand["user_id"] == name].shape[0])
 
         
 
@@ -112,12 +121,11 @@ def recommender(name):
               update_mode=GridUpdateMode.SELECTION_CHANGED,
               columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS)
     selected_rows = data["selected_rows"]
-    #print(selected_rows) # list of dicts.. should have news_ids
+
     if len(selected_rows) > 0:
         # add record to your history
         new_history = [article["news_id"] for article in selected_rows]
         update_history(name, history, cand, new_history)
-        print("New History",history.loc[(history["user_id"]==name)].shape)
 
     # get recommendations
     recommend_sidebar(name, cand, history, news, model_sts)
@@ -147,7 +155,7 @@ def register_new_user(authenticator):
             save_user(authenticator.credentials)
             st.success('User registered successfully')
             st.write("Please return to Login Menu")
-            #print(authenticator.credentials)
+
             
     except Exception as e:
         st.error(e)
@@ -164,9 +172,7 @@ def login(authenticator):
         authenticator.credentials = new_cred
 
     name, authentication_status, username = authenticator.login('Login', 'main')
-    #print("Name", name)
-    #print("Username", username)
-    #print(authenticator.credentials)
+
     if authentication_status:
         authenticator.logout('Logout', 'main')
         recommender(name)
@@ -215,7 +221,3 @@ def start_app():
 
 if __name__ == "__main__":
     start_app()
-
-
-    #hashed_passwords = stauth.Hasher(['abc', 'def']).generate()
-    #print(hashed_passwords)
